@@ -3,6 +3,24 @@ import { getOnlineBillRecord } from './getOnlineBillRecords.js';
 import { sortBillRecord } from './sortBillRecords.js';
 import { createHeaderMap, getColInfo, colIndexToLetter } from './sheetUtils.js';
 
+// Helper function to clean currency strings (removes ₱, commas, spaces) and parse to float
+function parseNumericValue(val) {
+  if (val === null || val === undefined) return 0;
+  const cleaned = val.toString().replace(/[^0-9.]/g, '');
+  return parseFloat(cleaned) || 0;
+}
+
+// Calculates Rate per kWh (Bill Amount / kWh Used) with ₱ currency symbol and 2 decimal places
+function calculateKwhRate(billAmountStr, kwhUsedStr) {
+  const billAmount = parseNumericValue(billAmountStr);
+  const kwhUsed = parseNumericValue(kwhUsedStr);
+
+  if (kwhUsed === 0) return '₱0.00';
+  
+  const rate = billAmount / kwhUsed;
+  return `₱${rate.toFixed(2)}`; // Formats to e.g., ₱11.46
+}
+
 export async function getNewBillToSheet(accountNumber) {
   try {
     let newRecordFound = 0;
@@ -28,14 +46,14 @@ export async function getNewBillToSheet(accountNumber) {
     const dueDateCol = getColInfo(headerMap, 'duedate', 'due');
     const amountCol = getColInfo(headerMap, 'billamount', 'amount');
     const statusCol = getColInfo(headerMap, 'status', 'billstatus');
-    // Added 'notification' alias here:
     const notifStatusCol = getColInfo(headerMap, 'notification', 'notificationstatus', 'notifstatus');
     const lastPaymentCol = getColInfo(headerMap, 'lastpaymentstatus', 'paymentstatus');
+    const kwhRateCol = getColInfo(headerMap, 'kwhrate', 'ratekwh', 'rate');
 
     const allColIndexes = [
       keyCol?.index, monthCol?.index, presentCol?.index, prevCol?.index,
       kwhCol?.index, dueDateCol?.index, amountCol?.index, statusCol?.index,
-      notifStatusCol?.index, lastPaymentCol?.index
+      notifStatusCol?.index, lastPaymentCol?.index, kwhRateCol?.index
     ].filter(idx => idx !== undefined);
 
     const maxColIndex = Math.max(headerRow.length - 1, ...allColIndexes);
@@ -62,6 +80,10 @@ export async function getNewBillToSheet(accountNumber) {
       if (dueDateCol) rowData[dueDateCol.index] = item.dueDate;
       if (amountCol) rowData[amountCol.index] = item.billAmount;
       if (statusCol) rowData[statusCol.index] = item.status;
+      
+      if (kwhRateCol) {
+        rowData[kwhRateCol.index] = calculateKwhRate(item.billAmount, item.kwhUsed);
+      }
 
       if (rowIndex !== -1) {
         if (notifStatusCol) {
