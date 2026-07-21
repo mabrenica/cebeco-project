@@ -1,0 +1,30 @@
+name: Run CEBECO Bill Automation
+
+on:
+  workflow_dispatch:
+  repository_dispatch:
+    types: [cron_trigger]
+
+jobs:
+  execute-bill-script:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Codebase
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js Environment
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install Dependencies
+        run: npm ci || npm install
+
+      - name: Inject Credentials JSON
+        run: echo "$CREDENTIALS_JSON" > credentials.json
+        env:
+          CREDENTIALS_JSON: ${{ secrets.CREDENTIALS_JSON }}
+
+      - name: Run Main Application Orchestrator
+        run: node app.js

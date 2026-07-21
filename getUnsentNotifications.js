@@ -10,7 +10,7 @@ export async function getUnsentNotifications() {
   const unsentNotificationKeys = [];
 
   data.forEach((item, index) => {
-    if (index === 0) return; // skip header
+    if (index === 0) return;
     if (item[8] === 'unsent') {
       console.log('Unsent notification key identified: ' + item[0]);
       unsentNotificationKeys.push(item[0]);

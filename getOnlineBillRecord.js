@@ -1,17 +1,15 @@
 import { JSDOM } from 'jsdom';
 
-// Helper function to wait before retrying
 const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
 export async function getOnlineBillRecord(accountNumber) {
   const url = `https://www.cebeco1.online/general-services/bill-inquiry/${accountNumber}`;
-  const maxAttempts = 3; // 1 initial attempt + 2 retries
+  const maxAttempts = 3;
 
   for (let attempt = 1; attempt <= maxAttempts; attempt++) {
     try {
       const response = await fetch(url);
       
-      // Handle HTTP error statuses (like 500 or 503) as request errors
       if (!response.ok) {
         throw new Error(`HTTP network error status: ${response.status}`);
       }
@@ -22,11 +20,9 @@ export async function getOnlineBillRecord(accountNumber) {
         responseText = responseText.replace(/defer/g, '');
       }
 
-      // Initialize JSDOM to parse HTML string locally
       const dom = new JSDOM(responseText);
       const document = dom.window.document;
 
-      // Mimic your Apps Script DOM-navigation path
       const bodyContainer = document.querySelector('body > div');
       if (!bodyContainer) throw new Error("Could not find root body container.");
 
@@ -42,7 +38,7 @@ export async function getOnlineBillRecord(accountNumber) {
       const billRecord = [];
 
       listItems.forEach((item, index) => {
-        if (index === 0) return; // Skip header row element
+        if (index === 0) return;
 
         const spans = item.querySelectorAll('span');
         if (spans.length < 8) return;
@@ -60,7 +56,7 @@ export async function getOnlineBillRecord(accountNumber) {
         billRecord.push(listItem);
       });
 
-      return billRecord; // Success: exit loop and return data
+      return billRecord;
 
     } catch (e) {
       console.warn(`Attempt ${attempt} failed fetching online bill record:`, e.message);

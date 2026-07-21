@@ -20,7 +20,6 @@ async function paymentNotificationManager(emailAddresses) {
 
 async function mainFunction() {
   try {
-    // 1. Resolve starting setup cell values dynamically across active context connections
     const initResponse = await sheets.spreadsheets.values.get({
       spreadsheetId: SPREADSHEET_ID,
       range: 'Set Up!A2',
@@ -32,10 +31,8 @@ async function mainFunction() {
     const emailAddresses = await getRecipientEmails();
     console.log('Configured account reference target value: ' + accountNumber);
 
-    // 2. Fetch remote scraping mutations
     await getNewBillToSheet(accountNumber);
 
-    // 3. Process mailing actions
     const unsentNotifications = await getUnsentNotifications();
     for (const recordKey of unsentNotifications) {
       await updateEmailTemplateFromRecord(recordKey);
@@ -43,14 +40,13 @@ async function mainFunction() {
       await updateNotificationStatus(recordKey);
     }
 
-    // 4. Handle incoming closures 
     await paymentNotificationManager(emailAddresses);
 
     console.log("Execution cycle completely concluded.");
   } catch (error) {
     console.error("Critical Runtime Fault Detected inside Application Orchestration:", error);
+    process.exit(1);
   }
 }
 
-// Kick off the application execution cycle
 mainFunction();

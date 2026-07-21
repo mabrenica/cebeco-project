@@ -1,5 +1,5 @@
 import { sheets, SPREADSHEET_ID } from './auth.js';
-import { getOnlineBillRecord } from './getOnlineBillRecord.js';
+import { getOnlineBillRecord } from './getOnlineBillRecords.js';
 import { sortBillRecord } from './sortBillRecords.js';
 
 export async function getNewBillToSheet(accountNumber) {
@@ -8,7 +8,6 @@ export async function getNewBillToSheet(accountNumber) {
     const record = await getOnlineBillRecord(accountNumber);
     if (!record || record.length === 0) return false;
 
-    // Fetch all current values from the target sheet
     const response = await sheets.spreadsheets.values.get({
       spreadsheetId: SPREADSHEET_ID,
       range: 'OnlineBillRecords!A:J',
@@ -30,7 +29,6 @@ export async function getNewBillToSheet(accountNumber) {
       }
 
       if (rowIndex !== -1) {
-        // Record exists, update columns A through H
         await sheets.spreadsheets.values.update({
           spreadsheetId: SPREADSHEET_ID,
           range: `OnlineBillRecords!A${rowIndex + 1}:H${rowIndex + 1}`,
@@ -38,7 +36,6 @@ export async function getNewBillToSheet(accountNumber) {
           requestBody: { values: [rowData] },
         });
       } else {
-        // Record is new, append row to the end of sheet data boundary
         await sheets.spreadsheets.values.append({
           spreadsheetId: SPREADSHEET_ID,
           range: 'OnlineBillRecords!A:J',

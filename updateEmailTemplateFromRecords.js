@@ -13,14 +13,13 @@ export async function updateEmailTemplateFromRecord(recordKey) {
     const item = onlineBillData[index];
 
     if (item[0] === recordKey) {
-      // Pack assignments into a clean transactional batchUpdate
       const dataPayload = [
-        { range: 'Bill Template!C1', values: [[item[6]]] }, // billAmount
-        { range: 'Bill Template!F1', values: [[item[1]]] }, // billingMonth
-        { range: 'Bill Template!C4', values: [[item[5]]] }, // dueDate
-        { range: 'Bill Template!F4', values: [[item[3]]] }, // previousReading
-        { range: 'Bill Template!F5', values: [[item[2]]] }, // presentReading
-        { range: 'Bill Template!F6', values: [[item[4]]] }  // kwhUsed
+        { range: 'Bill Template!C1', values: [[item[6]]] },
+        { range: 'Bill Template!F1', values: [[item[1]]] },
+        { range: 'Bill Template!C4', values: [[item[5]]] },
+        { range: 'Bill Template!F4', values: [[item[3]]] },
+        { range: 'Bill Template!F5', values: [[item[2]]] },
+        { range: 'Bill Template!F6', values: [[item[4]]] }
       ];
 
       await sheets.spreadsheets.values.batchUpdate({

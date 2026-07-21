@@ -1,16 +1,14 @@
 import nodemailer from 'nodemailer';
-import { sheets, SPREADSHEET_ID } from './auth.js'; 
+import { sheets, SPREADSHEET_ID, GMAIL_USER, GMAIL_APP_PASS } from './auth.js'; 
 
-// Configure standard local SMTP transport client settings
 const transporter = nodemailer.createTransport({
   service: 'gmail',
   auth: {
-    user: 'mabrenica.stormblue@gmail.com',
-    pass: 'qptu sbyn zhdc umgz' // 16-character generated app-password
+    user: GMAIL_USER,
+    pass: GMAIL_APP_PASS
   }
 });
 
-// Helper parsing logic that maps cell range checks locally
 function convertA1ToIndexes(rangeStr) {
   const cleanRange = rangeStr.replace(/[^A-Z0-9:]/gi, '');
   const parts = cleanRange.split(':');
@@ -36,7 +34,7 @@ function convertA1ToIndexes(rangeStr) {
 
 function isInAnyRange(row, col, ranges) {
   return ranges.some(rangeString => {
-    if (rangeString.endsWith(':')) rangeString += 'Z'; // Handle open bounds safely
+    if (rangeString.endsWith(':')) rangeString += 'Z';
     const { start, end } = convertA1ToIndexes(rangeString);
     const rowMatch = start.row === null || (row >= start.row && (end.row === null || row <= end.row));
     const colMatch = rowMatch && (col >= start.col && col <= end.col);
@@ -57,7 +55,6 @@ export async function sendBillToEmail(accountNumber, emailAddresses) {
   const rowData = sheetDataResponse.data.sheets[0].data[0].rowData || [];
   let monthFormatted = "Unknown Month";
   
-  // Outer table container setup matching standard email template widths
   let htmlTable = '<table cellpadding="6" cellspacing="0" style="border-collapse: collapse; font-family: Arial, sans-serif; font-size: 13px; color: #333333; width: 100%; max-width: 650px;">';
 
   rowData.forEach((row, i) => {
@@ -68,12 +65,10 @@ export async function sendBillToEmail(accountNumber, emailAddresses) {
       let formattedValue = cell.formattedValue !== undefined ? cell.formattedValue : '';
       const rawNumericValue = cell.effectiveValue?.numberValue;
 
-      // Extract Month metadata value out of F1 cell bounds (Row 0, Col 5)
       if (i === 0 && j === 5 && cell.formattedValue) {
          monthFormatted = cell.formattedValue;
       }
 
-      // Check range parameters for local structural modifications
       if (typeof rawNumericValue === 'number') {
         if (isInAnyRange(i, j, currencyRanges)) {
           formattedValue = new Intl.NumberFormat('en-PH', { style: 'currency', currency: 'PHP' }).format(rawNumericValue);
@@ -82,19 +77,16 @@ export async function sendBillToEmail(accountNumber, emailAddresses) {
         }
       }
 
-      // --- INLINE CSS ENGINE ---
       const format = cell.effectiveFormat || {};
       const textFormat = format.textFormat || {};
       let styles = [];
 
-      // 1. Background Color
       const bg = format.backgroundColor || {};
       const r = Math.round((bg.red || 1) * 255);
       const g = Math.round((bg.green || 1) * 255);
       const b = Math.round((bg.blue || 1) * 255);
       styles.push(`background-color: rgb(${r}, ${g}, ${b})`);
 
-      // 2. Text Color
       if (textFormat.foregroundColor) {
         const fg = textFormat.foregroundColor || {};
         const tcR = Math.round((fg.red || 0) * 255);
@@ -103,22 +95,18 @@ export async function sendBillToEmail(accountNumber, emailAddresses) {
         styles.push(`color: rgb(${tcR}, ${tcG}, ${tcB})`);
       }
 
-      // 3. Typography Styles
       if (textFormat.bold) styles.push('font-weight: bold');
       if (textFormat.italic) styles.push('font-style: italic');
       if (textFormat.fontSize) styles.push(`font-size: ${textFormat.fontSize}px`);
 
-      // 4. Alignment
       if (format.horizontalAlignment) {
         styles.push(`text-align: ${format.horizontalAlignment.toLowerCase()}`);
       } else {
-        // Fallback standard spreadsheet defaults if not explicitly set
         styles.push(typeof rawNumericValue === 'number' ? 'text-align: right' : 'text-align: left');
       }
 
-      // 5. Border Parser Matrix
       const mapBorder = (borderObj) => {
-        if (!borderObj || borderObj.style === 'NONE') return '1px solid #E0E0E0'; // Light default structure
+        if (!borderObj || borderObj.style === 'NONE') return '1px solid #E0E0E0';
         const bColor = borderObj.color || {};
         const bR = Math.round((bColor.red || 0) * 255);
         const bG = Math.round((bColor.green || 0) * 255);
@@ -132,7 +120,6 @@ export async function sendBillToEmail(accountNumber, emailAddresses) {
       styles.push(`border-left: ${mapBorder(format.borders?.left)}`);
       styles.push(`border-right: ${mapBorder(format.borders?.right)}`);
 
-      // Assemble final styles string safely
       const finalInlineStyle = styles.join('; ');
 
       if (i === 0) {
@@ -146,19 +133,19 @@ export async function sendBillToEmail(accountNumber, emailAddresses) {
   htmlTable += '</table>';
 
   const mailOptions = {
-    from: 'mabrenica.stormblue@gmail.com',
+    from: GMAIL_USER,
     to: emailAddresses.join(','),
     subject: "CEBECO1 BILL",
     html: `Good day! Your bill for ${monthFormatted} is ready. Please see below.<br><br>View your account online here: https://www.cebeco1.online/general-services/bill-inquiry/${accountNumber}<br><br>` + htmlTable
   };
 
   await transporter.sendMail(mailOptions);
-  console.log(`${monthFormatted} bill has been successfully sent via local Node transport.`);
+  console.log(`${monthFormatted} bill has been successfully sent via Node transport.`);
 }
 
 export async function sendPaymentNotificationToEmail(emailAddresses, amount, monthYear) {
   const mailOptions = {
-    from: 'mabrenica.stormblue@gmail.com',
+    from: GMAIL_USER,
     to: emailAddresses.join(','),
     subject: 'CEBECO I - Payment Notification',
     html: `Thank you for your payment. <br>We would like to confirm that your payment for ${monthYear} bill with an amount of ${amount} has been successfully posted. Cheers!`

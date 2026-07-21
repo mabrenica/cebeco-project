@@ -1,7 +1,6 @@
 import { sheets, SPREADSHEET_ID } from './auth.js';
 
 export async function sortBillRecord() {
-  // First, pull sheet metadata to discover the underlying numeric Sheet ID for 'OnlineBillRecords'
   const spreadsheet = await sheets.spreadsheets.get({ spreadsheetId: SPREADSHEET_ID });
   const sheetObj = spreadsheet.data.sheets.find(s => s.properties.title === 'OnlineBillRecords');
   
@@ -15,13 +14,13 @@ export async function sortBillRecord() {
     sortRange: {
       range: {
         sheetId: sheetId,
-        startRowIndex: 1, // Row 2 onwards (0-indexed base)
+        startRowIndex: 1,
         endRowIndex: rowCount,
         startColumnIndex: 0,
         endColumnIndex: 10
       },
       sortSpecs: [{
-        dimensionIndex: 1, // Column B (0-indexed base)
+        dimensionIndex: 1,
         sortOrder: 'DESCENDING'
       }]
     }
