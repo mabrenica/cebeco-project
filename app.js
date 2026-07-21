@@ -7,6 +7,7 @@ import { sendBillToEmail, sendPaymentNotificationToEmail } from './emailSender.j
 import { updateNotificationStatus } from './updateNotificationStatus.js';
 import { getPaymentStatusChange } from './getPaymentStatusChange.js';
 import { updateLastPaymentStatus } from './updateLastPaymentStatus.js';
+import { createHeaderMap, getColInfo } from './sheetUtils.js';
 
 async function paymentNotificationManager(emailAddresses) {
   const paymentStatusChange = await getPaymentStatusChange();
@@ -22,10 +23,23 @@ async function mainFunction() {
   try {
     const initResponse = await sheets.spreadsheets.values.get({
       spreadsheetId: SPREADSHEET_ID,
-      range: 'Set Up!A2',
+      range: 'Set Up!A1:Z2',
     });
     
-    const accountNumber = initResponse.data.values?.[0]?.[0];
+    const setupRows = initResponse.data.values || [];
+    let accountNumber = null;
+
+    if (setupRows.length > 0) {
+      const headerMap = createHeaderMap(setupRows[0]);
+      const accountCol = getColInfo(headerMap, 'accountnumber', 'account', 'accountref');
+      
+      if (accountCol && setupRows[1]) {
+        accountNumber = setupRows[1][accountCol.index];
+      } else {
+        accountNumber = setupRows[1]?.[0] || setupRows[0]?.[0];
+      }
+    }
+
     if (!accountNumber) throw new Error("Could not extract account configuration references.");
     
     const emailAddresses = await getRecipientEmails();

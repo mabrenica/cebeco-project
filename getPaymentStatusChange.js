@@ -1,33 +1,52 @@
 import { sheets, SPREADSHEET_ID } from './auth.js';
+import { createHeaderMap, getColInfo } from './sheetUtils.js';
 
 export async function getPaymentStatusChange() {
   const responseValues = await sheets.spreadsheets.values.get({
     spreadsheetId: SPREADSHEET_ID,
-    range: 'OnlineBillRecords!A:J',
+    range: 'OnlineBillRecords!A:Z',
   });
   
   const responseMeta = await sheets.spreadsheets.get({
     spreadsheetId: SPREADSHEET_ID,
-    ranges: ['OnlineBillRecords!A:J'],
+    ranges: ['OnlineBillRecords!A:Z'],
     includeGridData: true
   });
 
   const data = responseValues.data.values || [];
+  if (data.length < 2) return [];
+
+  const headerMap = createHeaderMap(data[0]);
+  const keyCol = getColInfo(headerMap, 'key', 'recordkey');
+  const monthCol = getColInfo(headerMap, 'billingmonth', 'monthyear', 'month');
+  const amountCol = getColInfo(headerMap, 'billamount', 'amount');
+  const statusCol = getColInfo(headerMap, 'status', 'billstatus');
+  const lastPaymentCol = getColInfo(headerMap, 'lastpaymentstatus', 'paymentstatus');
+
+  if (!statusCol || !lastPaymentCol) return [];
+
   const metaRows = responseMeta.data.sheets[0].data[0].rowData || [];
   const updatedPaymentKeys = [];
 
   data.forEach((item, index) => {
     if (index === 0) return;
-    if (item[7] !== item[9]) {
-      console.log('Payment Status Change discovered: ' + item[0]);
+
+    const currentStatus = item[statusCol.index] || '';
+    // Default lastStatus to 'UNPAID' if cell is empty/undefined to prevent false positive triggers
+    const lastStatus = item[lastPaymentCol.index] || 'UNPAID';
+
+    if (currentStatus && currentStatus !== lastStatus) {
+      const recordKey = keyCol ? item[keyCol.index] : item[0];
+      console.log(`Payment Status Change discovered for ${recordKey}: [${lastStatus}] -> [${currentStatus}]`);
       
-      const formattedDate = metaRows[index]?.values?.[1]?.formattedValue || item[1];
+      const formattedDate = (monthCol && metaRows[index]?.values?.[monthCol.index]?.formattedValue) 
+        || (monthCol ? item[monthCol.index] : item[1]);
       
       updatedPaymentKeys.push({
-        key: item[0],
-        newStatus: item[7],
+        key: recordKey,
+        newStatus: currentStatus,
         monthYear: formattedDate,
-        amount: item[6]
+        amount: amountCol ? item[amountCol.index] : item[6]
       });
     }
   });
