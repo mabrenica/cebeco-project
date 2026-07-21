@@ -133,7 +133,7 @@ export async function sendBillToEmail(accountNumber, emailAddresses) {
   htmlTable += '</table>';
 
   const mailOptions = {
-    from: GMAIL_USER,
+    from: `"CEBECO 1 Billing" <${GMAIL_USER}>`,
     to: emailAddresses.join(','),
     subject: "CEBECO1 BILL",
     html: `Good day! Your bill for ${monthFormatted} is ready. Please see below.<br><br>View your account online here: https://www.cebeco1.online/general-services/bill-inquiry/${accountNumber}<br><br>` + htmlTable
