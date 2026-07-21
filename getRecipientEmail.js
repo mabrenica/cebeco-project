@@ -20,17 +20,17 @@ export async function getRecipientEmails() {
 
   const emailAddresses = [];
 
-  values.forEach(row => {
-    if (row[0] && typeof row[0] === 'string') {
-      // Split by comma, trim spaces, and exclude empty entries
-      const splitEmails = row[0]
+  for (let i = startRow; i < values.length; i++) {
+    const cellValue = values[i]?.[colIdx];
+    if (cellValue && typeof cellValue === 'string') {
+      const splitEmails = cellValue
         .split(',')
         .map(email => email.trim())
         .filter(email => email.length > 0);
 
       emailAddresses.push(...splitEmails);
     }
-  });
+  }
 
   return emailAddresses;
 }
