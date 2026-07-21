@@ -11,7 +11,7 @@ export async function getRecipientEmails() {
 
   values.forEach(row => {
     if (row[0] && typeof row[0] === 'string') {
-      // Split cell by comma, trim each address, and filter out blank values
+      // Split by comma, trim spaces, and exclude empty entries
       const splitEmails = row[0]
         .split(',')
         .map(email => email.trim())

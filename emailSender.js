@@ -145,7 +145,7 @@ export async function sendBillToEmail(accountNumber, emailAddresses) {
 
 export async function sendPaymentNotificationToEmail(emailAddresses, amount, monthYear) {
   const mailOptions = {
-    from: GMAIL_USER,
+    from: `"CEBECO 1 Billing" <${GMAIL_USER}>`,
     to: emailAddresses.join(','),
     subject: 'CEBECO I - Payment Notification',
     html: `Thank you for your payment. <br>We would like to confirm that your payment for ${monthYear} bill with an amount of ${amount} has been successfully posted. Cheers!`
