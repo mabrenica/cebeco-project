@@ -8,7 +8,14 @@ if (!fs.existsSync(CREDENTIALS_PATH)) {
   throw new Error('CRITICAL ERROR: credentials.json file missing. Please ensure it exists locally or via GitHub Secrets.');
 }
 
-const credentialsData = JSON.parse(fs.readFileSync(CREDENTIALS_PATH, 'utf8'));
+// Read raw file
+const rawData = fs.readFileSync(CREDENTIALS_PATH, 'utf8');
+const credentialsData = JSON.parse(rawData);
+
+// Fix unescaped or double-escaped newlines in the private key string for OpenSSL
+if (credentialsData.private_key) {
+  credentialsData.private_key = credentialsData.private_key.replace(/\\n/g, '\n');
+}
 
 const auth = new google.auth.GoogleAuth({
   credentials: credentialsData,
