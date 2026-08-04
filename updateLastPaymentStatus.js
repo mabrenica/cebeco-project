@@ -16,15 +16,17 @@ export async function updateLastPaymentStatus(recordKey, newStatus) {
 
   if (!keyCol || !lastPaymentCol) return;
 
+  const normalizedStatus = (newStatus || 'PAID').toString().trim().toUpperCase();
+
   for (let index = 1; index < data.length; index++) {
     if (data[index][keyCol.index] === recordKey) {
       await sheets.spreadsheets.values.update({
         spreadsheetId: SPREADSHEET_ID,
         range: `online_bill_records!${lastPaymentCol.letter}${index + 1}`,
         valueInputOption: 'USER_ENTERED',
-        requestBody: { values: [[newStatus]] },
+        requestBody: { values: [[normalizedStatus]] },
       });
-      console.log('Last Payment Status updated: ' + recordKey);
+      console.log(`Last Payment Status updated for ${recordKey} to [${normalizedStatus}]`);
       break;
     }
   }

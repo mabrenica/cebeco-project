@@ -24,11 +24,12 @@ export async function updateEmailTemplateFromRecord(recordKey) {
   });
 
   const onlineBillData = response.data.values || [];
-  if (onlineBillData.length < 2) return;
+  if (onlineBillData.length < 2) return null;
 
   const headerMap = createHeaderMap(onlineBillData[0]);
   const keyCol = getColInfo(headerMap, 'key', 'recordkey');
   const monthCol = getColInfo(headerMap, 'month_year', 'billingmonth', 'monthyear', 'month');
+  const accountNumberCol = getColInfo(headerMap, 'account_number', 'accountnumber', 'account');
   const presentCol = getColInfo(headerMap, 'present_reading', 'presentreading', 'present');
   const prevCol = getColInfo(headerMap, 'previous_reading', 'previousreading', 'prevreading', 'previous');
   const kwhCol = getColInfo(headerMap, 'kwh_used', 'kwhused', 'kwh');
@@ -36,7 +37,7 @@ export async function updateEmailTemplateFromRecord(recordKey) {
   const amountCol = getColInfo(headerMap, 'bill_amount', 'billamount', 'amount');
   const kwhRateCol = getColInfo(headerMap, 'kwh_rate', 'kwhrate', 'ratekwh', 'rate');
 
-  if (!keyCol) return;
+  if (!keyCol) return null;
 
   for (let index = 1; index < onlineBillData.length; index++) {
     const item = onlineBillData[index];
@@ -44,6 +45,7 @@ export async function updateEmailTemplateFromRecord(recordKey) {
     if (item[keyCol.index] === recordKey) {
       const amountVal = amountCol ? item[amountCol.index] : '';
       const kwhVal = kwhCol ? item[kwhCol.index] : '';
+      const accountNumberVal = accountNumberCol ? item[accountNumberCol.index] : '';
 
       let rateVal = kwhRateCol ? item[kwhRateCol.index] : '';
       if ((!rateVal || rateVal.trim() === '') && amountVal && kwhVal) {
@@ -67,7 +69,10 @@ export async function updateEmailTemplateFromRecord(recordKey) {
           data: dataPayload
         }
       });
-      break;
+
+      return accountNumberVal;
     }
   }
+
+  return null;
 }

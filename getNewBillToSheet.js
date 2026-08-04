@@ -22,7 +22,9 @@ function calculateKwhRate(billAmountStr, kwhUsedStr) {
 export async function getNewBillToSheet(accountNumber) {
   try {
     let newRecordFound = 0;
-    const record = await getOnlineBillRecord(accountNumber);
+    const cleanAccountNumber = String(accountNumber).trim().padStart(11, '0');
+
+    const record = await getOnlineBillRecord(cleanAccountNumber);
     if (!record || record.length === 0) return false;
 
     const response = await sheets.spreadsheets.values.get({
@@ -38,6 +40,7 @@ export async function getNewBillToSheet(accountNumber) {
 
     const keyCol = getColInfo(headerMap, 'key', 'recordkey');
     const monthCol = getColInfo(headerMap, 'month_year', 'billingmonth', 'monthyear', 'month');
+    const accountNumberCol = getColInfo(headerMap, 'account_number', 'accountnumber', 'account');
     const presentCol = getColInfo(headerMap, 'present_reading', 'presentreading', 'present');
     const prevCol = getColInfo(headerMap, 'previous_reading', 'previousreading', 'prevreading', 'previous');
     const kwhCol = getColInfo(headerMap, 'kwh_used', 'kwhused', 'kwh');
@@ -49,15 +52,16 @@ export async function getNewBillToSheet(accountNumber) {
     const kwhRateCol = getColInfo(headerMap, 'kwh_rate', 'kwhrate', 'ratekwh', 'rate');
 
     const allColIndexes = [
-      keyCol?.index, monthCol?.index, presentCol?.index, prevCol?.index,
-      kwhCol?.index, dueDateCol?.index, amountCol?.index, statusCol?.index,
-      notifStatusCol?.index, lastPaymentCol?.index, kwhRateCol?.index
+      keyCol?.index, monthCol?.index, accountNumberCol?.index, presentCol?.index,
+      prevCol?.index, kwhCol?.index, dueDateCol?.index, amountCol?.index,
+      statusCol?.index, notifStatusCol?.index, lastPaymentCol?.index, kwhRateCol?.index
     ].filter(idx => idx !== undefined);
 
     const maxColIndex = Math.max(headerRow.length - 1, ...allColIndexes);
 
     for (const item of record) {
-      const recordKey = '_' + item.monthYear.replace(/\s+/g, '');
+      const cleanMonthYear = item.monthYear.replace(/\s+/g, '');
+      const recordKey = `${cleanMonthYear}_${cleanAccountNumber}`;
 
       let rowIndex = -1;
       if (keyCol) {
@@ -72,6 +76,7 @@ export async function getNewBillToSheet(accountNumber) {
       const rowData = new Array(maxColIndex + 1).fill('');
       if (keyCol) rowData[keyCol.index] = recordKey;
       if (monthCol) rowData[monthCol.index] = item.monthYear;
+      if (accountNumberCol) rowData[accountNumberCol.index] = cleanAccountNumber;
       if (presentCol) rowData[presentCol.index] = item.presentReading;
       if (prevCol) rowData[prevCol.index] = item.previousReading;
       if (kwhCol) rowData[kwhCol.index] = item.kwhUsed;
@@ -84,13 +89,12 @@ export async function getNewBillToSheet(accountNumber) {
       }
 
       if (rowIndex !== -1) {
+        // RECORD EXISTS: Update all columns EXCEPT notification and last_payment_status
         if (notifStatusCol) {
-          const existingNotif = data[rowIndex][notifStatusCol.index];
-          rowData[notifStatusCol.index] = (existingNotif && existingNotif.trim() !== '') ? existingNotif : 'unsent';
+          rowData[notifStatusCol.index] = data[rowIndex][notifStatusCol.index] || '';
         }
         if (lastPaymentCol) {
-          const existingPayment = data[rowIndex][lastPaymentCol.index];
-          rowData[lastPaymentCol.index] = (existingPayment && existingPayment.trim() !== '') ? existingPayment : 'UNPAID';
+          rowData[lastPaymentCol.index] = data[rowIndex][lastPaymentCol.index] || '';
         }
 
         const endLetter = colIndexToLetter(maxColIndex);
@@ -101,8 +105,9 @@ export async function getNewBillToSheet(accountNumber) {
           requestBody: { values: [rowData] },
         });
       } else {
+        // NEW RECORD: notification = 'unsent', last_payment_status = scraped status
         if (notifStatusCol) rowData[notifStatusCol.index] = 'unsent';
-        if (lastPaymentCol) rowData[lastPaymentCol.index] = 'UNPAID';
+        if (lastPaymentCol) rowData[lastPaymentCol.index] = item.status;
 
         await sheets.spreadsheets.values.append({
           spreadsheetId: SPREADSHEET_ID,
@@ -111,17 +116,13 @@ export async function getNewBillToSheet(accountNumber) {
           requestBody: { values: [rowData] },
         });
         newRecordFound++;
-        console.log("New bill record added: " + item.monthYear);
+        console.log(`New bill record added for account ${cleanAccountNumber}: ${item.monthYear}`);
       }
     }
 
-    if (newRecordFound > 0) {
-      await sortBillRecord();
-      return true;
-    } else {
-      console.log('No new bill found');
-      return false;
-    }
+    await sortBillRecord();
+    return true;
+
   } catch (e) {
     console.error('Error processing bill sync to sheet:', e);
   }

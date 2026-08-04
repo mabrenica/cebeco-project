@@ -2,44 +2,47 @@ import { sheets, SPREADSHEET_ID } from './auth.js';
 import { createHeaderMap, getColInfo } from './sheetUtils.js';
 
 export async function sortBillRecord() {
-  const spreadsheet = await sheets.spreadsheets.get({ spreadsheetId: SPREADSHEET_ID });
-  const sheetObj = spreadsheet.data.sheets.find(s => s.properties.title === 'online_bill_records');
-  
-  if (!sheetObj) return;
-  const sheetId = sheetObj.properties.sheetId;
-  const rowCount = sheetObj.properties.gridProperties.rowCount;
+  try {
+    const response = await sheets.spreadsheets.values.get({
+      spreadsheetId: SPREADSHEET_ID,
+      range: 'online_bill_records!A:Z',
+    });
 
-  if (rowCount < 2) return;
+    const data = response.data.values || [];
+    if (data.length <= 2) return; // No sorting needed for 0 or 1 data row
 
-  const response = await sheets.spreadsheets.values.get({
-    spreadsheetId: SPREADSHEET_ID,
-    range: 'online_bill_records!1:1',
-  });
+    const headerRow = data[0];
+    const dataRows = data.slice(1);
 
-  const headerRow = response.data.values?.[0] || [];
-  const headerMap = createHeaderMap(headerRow);
-  const monthCol = getColInfo(headerMap, 'month_year', 'billingmonth', 'monthyear', 'month');
+    const headerMap = createHeaderMap(headerRow);
+    const monthCol = getColInfo(headerMap, 'month_year', 'billingmonth', 'monthyear', 'month');
+    const dueDateCol = getColInfo(headerMap, 'due_date', 'duedate', 'due');
 
-  const sortDimensionIndex = monthCol ? monthCol.index : 1;
+    // Parses string dates (e.g., "September 2025" or "October 25, 2025") into Epoch timestamps
+    const parseRowTimestamp = (row) => {
+      let d = null;
+      if (monthCol && row[monthCol.index]) {
+        d = new Date(row[monthCol.index]);
+      }
+      if ((!d || isNaN(d.getTime())) && dueDateCol && row[dueDateCol.index]) {
+        d = new Date(row[dueDateCol.index]);
+      }
+      return (d && !isNaN(d.getTime())) ? d.getTime() : 0;
+    };
 
-  const requests = [{
-    sortRange: {
-      range: {
-        sheetId: sheetId,
-        startRowIndex: 1,
-        endRowIndex: rowCount,
-        startColumnIndex: 0,
-        endColumnIndex: headerRow.length || 10
-      },
-      sortSpecs: [{
-        dimensionIndex: sortDimensionIndex,
-        sortOrder: 'DESCENDING'
-      }]
-    }
-  }];
+    // Sort descending (latest date at the top)
+    dataRows.sort((a, b) => parseRowTimestamp(b) - parseRowTimestamp(a));
 
-  await sheets.spreadsheets.batchUpdate({
-    spreadsheetId: SPREADSHEET_ID,
-    requestBody: { requests }
-  });
+    // Overwrite sheet rows starting at row 2 with sorted data
+    await sheets.spreadsheets.values.update({
+      spreadsheetId: SPREADSHEET_ID,
+      range: 'online_bill_records!A2',
+      valueInputOption: 'USER_ENTERED',
+      requestBody: { values: dataRows },
+    });
+
+    console.log('online_bill_records sheet successfully sorted (latest on top).');
+  } catch (error) {
+    console.error('Error sorting online_bill_records sheet:', error);
+  }
 }
