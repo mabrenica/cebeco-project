@@ -2,10 +2,8 @@ import { JSDOM } from 'jsdom';
 
 const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
-export async function getOnlineBillRecord(accountNumber) {
-  // Ensure account number is formatted to 11 digits with leading zero(s) if needed
-  const formattedAccountNumber = String(accountNumber).trim().padStart(11, '0');
-  const url = `https://www.cebeco1.online/general-services/bill-inquiry/${formattedAccountNumber}`;
+export async function getOnlineBillRecord(accountNumber = "15100295013") {
+  const url = `https://www.cebeco1.online/general-services/bill-inquiry/${accountNumber}`;
   const maxAttempts = 3;
 
   for (let attempt = 1; attempt <= maxAttempts; attempt++) {
@@ -33,35 +31,42 @@ export async function getOnlineBillRecord(accountNumber) {
       const listItems = targetDiv?.querySelectorAll('ul > li');
 
       if (!listItems) {
-        console.log(`No billing elements found on the web page for ${formattedAccountNumber}.`);
+        console.log('No billing elements found on the web page.');
         return [];
       }
 
       const billRecord = [];
 
       listItems.forEach((item, index) => {
-        if (index === 0) return;
+        if (index === 0) return; // Skip table header element
 
         const spans = item.querySelectorAll('span');
         if (spans.length < 8) return;
 
+        const monthYear = spans[1].textContent.trim();
+        // Generate a unique, repeatable record ID (e.g., "15100295013_JAN2026")
+        const recordId = `${accountNumber}_${monthYear.replace(/\s+/g, '')}`;
+
         const listItem = {
-          monthYear: spans[1].textContent.trim(),
-          presentReading: spans[2].textContent.trim(),
-          previousReading: spans[3].textContent.trim(),
-          kwhUsed: spans[4].textContent.trim(),
-          dueDate: spans[5].textContent.trim(),
-          billAmount: spans[6].textContent.trim(),
-          status: spans[7].textContent.trim()
+          "id": recordId,
+          "accountNumber": accountNumber,
+          "monthYear": monthYear,
+          "presentReading": spans[2].textContent.trim(),
+          "previousReading": spans[3].textContent.trim(),
+          "kwhUsed": spans[4].textContent.trim(),
+          "dueDate": spans[5].textContent.trim(),
+          "billAmount": spans[6].textContent.trim(),
+          "status": spans[7].textContent.trim()
         };
 
         billRecord.push(listItem);
       });
 
+      console.log(JSON.stringify(billRecord, null, 2));
       return billRecord;
 
     } catch (e) {
-      console.warn(`Attempt ${attempt} failed fetching online bill record for ${formattedAccountNumber}:`, e.message);
+      console.warn(`Attempt ${attempt} failed fetching online bill record:`, e.message);
       
       if (attempt < maxAttempts) {
         console.log(`Waiting 1 second before retrying...`);
@@ -73,3 +78,6 @@ export async function getOnlineBillRecord(accountNumber) {
     }
   }
 }
+
+// Execute function for testing
+getOnlineBillRecord();

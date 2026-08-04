@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Electricity Bill Notification</title>
+</head>
+<body style="margin: 0; padding: 0; background-color: #F8FAFC; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; color: #334155;">
+  
+  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background-color: #F8FAFC; padding: 24px 12px;">
+    <tr>
+      <td align="center">
+        
+        <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="max-width: 600px; background-color: #FFFFFF; border-radius: 12px; overflow: hidden; border: 1px solid #E2E8F0; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);">
+          
+          <!-- Header -->
+          <tr>
+            <td style="background-color: #0F172A; padding: 24px 32px; text-align: left;">
+              <h1 style="margin: 0; font-size: 20px; font-weight: 700; color: #FFFFFF; letter-spacing: 0.5px;">CEBECO 1 BILLING</h1>
+              <p style="margin: 4px 0 0 0; font-size: 13px; color: #94A3B8;">Electric Service Notification</p>
+            </td>
+          </tr>
+
+          <!-- Body Content -->
+          <tr>
+            <td style="padding: 32px;">
+              
+              <!-- Greeting with Online Account Link -->
+              <p style="margin: 0 0 24px 0; font-size: 15px; line-height: 1.6; color: #334155;">
+                Good day, <strong>{{ACCOUNT_NAME}}</strong>. Your bill for <strong>{{MONTH_YEAR}}</strong> is ready. Please see the details below or <a href="https://www.cebeco1.online/general-services/bill-inquiry/{{ACCOUNT_NUMBER}}" target="_blank" style="color: #2563EB; font-weight: 600; text-decoration: underline;">click here to view your account online</a>.
+              </p>
+
+              <!-- Main Bill Summary Card -->
+              <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background-color: #F1F5F9; border-radius: 8px; border: 1px solid #CBD5E1; margin-bottom: 28px; overflow: hidden;">
+                <tr>
+                  <td style="padding: 20px 24px; text-align: center; border-bottom: 1px dashed #CBD5E1; background-color: #E2E8F0;">
+                    <span style="font-size: 12px; text-transform: uppercase; letter-spacing: 1px; color: #64748B; font-weight: 600;">Total Amount Due</span>
+                    <div style="font-size: 32px; font-weight: 800; color: #0F172A; margin-top: 4px;">{{TOTAL_AMOUNT}}</div>
+                  </td>
+                </tr>
+                <tr>
+                  <td style="padding: 20px 24px;">
+                    <table role="presentation" width="100%" cellspacing="0" cellpadding="0">
+                      <tr>
+                        <td style="padding: 6px 0; font-size: 13px; color: #64748B;">Account Number:</td>
+                        <td style="padding: 6px 0; font-size: 13px; font-weight: 600; color: #0F172A; text-align: right;">{{ACCOUNT_NUMBER}}</td>
+                      </tr>
+                      <tr>
+                        <td style="padding: 6px 0; font-size: 13px; color: #64748B;">Due Date:</td>
+                        <td style="padding: 6px 0; font-size: 13px; font-weight: 600; color: #DC2626; text-align: right;">{{DUE_DATE}}</td>
+                      </tr>
+                      <tr>
+                        <td style="padding: 6px 0; font-size: 13px; color: #64748B;">KWH Rate:</td>
+                        <td style="padding: 6px 0; font-size: 13px; font-weight: 600; color: #0F172A; text-align: right;">{{KWH_RATE}}</td>
+                      </tr>
+                      <tr>
+                        <td style="padding: 6px 0; font-size: 13px; color: #64748B;">Previous Reading:</td>
+                        <td style="padding: 6px 0; font-size: 13px; font-weight: 600; color: #0F172A; text-align: right;">{{PREV_READING}}</td>
+                      </tr>
+                      <tr>
+                        <td style="padding: 6px 0; font-size: 13px; color: #64748B;">Present Reading:</td>
+                        <td style="padding: 6px 0; font-size: 13px; font-weight: 600; color: #0F172A; text-align: right;">{{PRESENT_READING}}</td>
+                      </tr>
+                      <tr>
+                        <td style="padding: 6px 0; font-size: 13px; color: #64748B;">KWH Used:</td>
+                        <td style="padding: 6px 0; font-size: 13px; font-weight: 600; color: #0F172A; text-align: right;">{{KWH_USED}} kWh</td>
+                      </tr>
+                    </table>
+                  </td>
+                </tr>
+              </table>
+
+              <!-- Historical Table -->
+              <h3 style="margin: 0 0 12px 0; font-size: 15px; font-weight: 700; color: #0F172A;">Monthly Electricity Usage</h3>
+              
+              <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="border-collapse: collapse; width: 100%; font-size: 13px; border: 1px solid #E2E8F0; border-radius: 6px; overflow: hidden;">
+                <thead>
+                  <tr style="background-color: #0F172A; color: #FFFFFF;">
+                    <th style="padding: 10px 12px; text-align: left; font-weight: 600;">Month Year</th>
+                    <th style="padding: 10px 12px; text-align: center; font-weight: 600;">KWH Rate</th>
+                    <th style="padding: 10px 12px; text-align: center; font-weight: 600;">KWH Used</th>
+                    <th style="padding: 10px 12px; text-align: right; font-weight: 600;">Bill Amount</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {{HISTORY_ROWS}}
+                </tbody>
+              </table>
+
+            </td>
+          </tr>
+
+          <!-- Footer -->
+          <tr>
+            <td style="background-color: #F8FAFC; padding: 20px 32px; text-align: center; border-top: 1px solid #E2E8F0;">
+              <p style="margin: 0; font-size: 12px; color: #64748B; font-weight: 500;">
+                Powered by Marnel Abrenica Automations
+              </p>
+            </td>
+          </tr>
+
+        </table>
+
+      </td>
+    </tr>
+  </table>
+
+</body>
+</html>

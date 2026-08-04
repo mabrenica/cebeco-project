@@ -4,7 +4,7 @@ import { createHeaderMap, getColInfo } from './sheetUtils.js';
 export async function updateLastPaymentStatus(recordKey, newStatus) {
   const response = await sheets.spreadsheets.values.get({
     spreadsheetId: SPREADSHEET_ID,
-    range: 'OnlineBillRecords!A:Z',
+    range: 'online_bill_records!A:Z',
   });
 
   const data = response.data.values || [];
@@ -12,19 +12,21 @@ export async function updateLastPaymentStatus(recordKey, newStatus) {
 
   const headerMap = createHeaderMap(data[0]);
   const keyCol = getColInfo(headerMap, 'key', 'recordkey');
-  const lastPaymentCol = getColInfo(headerMap, 'lastpaymentstatus', 'paymentstatus');
+  const lastPaymentCol = getColInfo(headerMap, 'last_payment_status', 'lastpaymentstatus', 'paymentstatus');
 
   if (!keyCol || !lastPaymentCol) return;
+
+  const normalizedStatus = (newStatus || 'PAID').toString().trim().toUpperCase();
 
   for (let index = 1; index < data.length; index++) {
     if (data[index][keyCol.index] === recordKey) {
       await sheets.spreadsheets.values.update({
         spreadsheetId: SPREADSHEET_ID,
-        range: `OnlineBillRecords!${lastPaymentCol.letter}${index + 1}`,
+        range: `online_bill_records!${lastPaymentCol.letter}${index + 1}`,
         valueInputOption: 'USER_ENTERED',
-        requestBody: { values: [[newStatus]] },
+        requestBody: { values: [[normalizedStatus]] },
       });
-      console.log('Last Payment Status updated: ' + recordKey);
+      console.log(`Last Payment Status updated for ${recordKey} to [${normalizedStatus}]`);
       break;
     }
   }

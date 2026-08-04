@@ -1,15 +1,15 @@
 import { sheets, SPREADSHEET_ID } from './auth.js';
 import { createHeaderMap, getColInfo } from './sheetUtils.js';
 
-export async function getPaymentStatusChange() {
+export async function getPaymentStatusChange(targetAccountNumber) {
   const responseValues = await sheets.spreadsheets.values.get({
     spreadsheetId: SPREADSHEET_ID,
-    range: 'OnlineBillRecords!A:Z',
+    range: 'online_bill_records!A:Z',
   });
   
   const responseMeta = await sheets.spreadsheets.get({
     spreadsheetId: SPREADSHEET_ID,
-    ranges: ['OnlineBillRecords!A:Z'],
+    ranges: ['online_bill_records!A:Z'],
     includeGridData: true
   });
 
@@ -18,37 +18,55 @@ export async function getPaymentStatusChange() {
 
   const headerMap = createHeaderMap(data[0]);
   const keyCol = getColInfo(headerMap, 'key', 'recordkey');
-  const monthCol = getColInfo(headerMap, 'billingmonth', 'monthyear', 'month');
-  const amountCol = getColInfo(headerMap, 'billamount', 'amount');
+  const monthCol = getColInfo(headerMap, 'month_year', 'billingmonth', 'monthyear', 'month');
+  const accCol = getColInfo(headerMap, 'account_number', 'accountnumber', 'account');
+  const amountCol = getColInfo(headerMap, 'bill_amount', 'billamount', 'amount');
   const statusCol = getColInfo(headerMap, 'status', 'billstatus');
-  const lastPaymentCol = getColInfo(headerMap, 'lastpaymentstatus', 'paymentstatus');
+  const lastPaymentCol = getColInfo(headerMap, 'last_payment_status', 'lastpaymentstatus', 'paymentstatus');
 
   if (!statusCol || !lastPaymentCol) return [];
 
+  const cleanTargetAcc = String(targetAccountNumber).trim().padStart(11, '0');
   const metaRows = responseMeta.data.sheets[0].data[0].rowData || [];
   const updatedPaymentKeys = [];
 
   data.forEach((item, index) => {
     if (index === 0) return;
 
-    const currentStatus = item[statusCol.index] || '';
-    // Default lastStatus to 'UNPAID' if cell is empty/undefined to prevent false positive triggers
-    const lastStatus = item[lastPaymentCol.index] || 'UNPAID';
+    const recordKey = keyCol ? item[keyCol.index] : item[0];
+    let rowAcc = accCol ? String(item[accCol.index] || '').trim().padStart(11, '0') : '';
+    
+    // Fallback: parse account number from key string if account_number cell is empty
+    if ((!rowAcc || rowAcc === '00000000000') && recordKey) {
+      const parts = recordKey.split('_');
+      if (parts.length > 1) {
+        rowAcc = String(parts[parts.length - 1]).trim().padStart(11, '0');
+      }
+    }
 
-    if (currentStatus && currentStatus !== lastStatus) {
-      const recordKey = keyCol ? item[keyCol.index] : item[0];
-      console.log(`Payment Status Change discovered for ${recordKey}: [${lastStatus}] -> [${currentStatus}]`);
-      
-      const formattedDate = (monthCol && metaRows[index]?.values?.[monthCol.index]?.formattedValue) 
-        || (monthCol ? item[monthCol.index] : item[1]);
-      
-      updatedPaymentKeys.push({
-        key: recordKey,
-        newStatus: currentStatus,
-        monthYear: formattedDate,
-        amount: amountCol ? item[amountCol.index] : item[6]
-      });
+    // Only process status changes for the target account number
+    if (rowAcc === cleanTargetAcc) {
+      const rawCurrentStatus = item[statusCol.index] || '';
+      const rawLastStatus = item[lastPaymentCol.index] || 'UNPAID';
+
+      const currentStatusClean = rawCurrentStatus.toString().trim().toUpperCase();
+      const lastStatusClean = rawLastStatus.toString().trim().toUpperCase();
+
+      if (currentStatusClean && currentStatusClean !== lastStatusClean) {
+        console.log(`Payment Status Change discovered for ${recordKey}: [${rawLastStatus}] -> [${rawCurrentStatus}]`);
+        
+        const formattedDate = (monthCol && metaRows[index]?.values?.[monthCol.index]?.formattedValue) 
+          || (monthCol ? item[monthCol.index] : item[1]);
+        
+        updatedPaymentKeys.push({
+          key: recordKey,
+          newStatus: currentStatusClean,
+          monthYear: formattedDate,
+          amount: amountCol ? item[amountCol.index] : item[6]
+        });
+      }
     }
   });
+
   return updatedPaymentKeys;
 }
