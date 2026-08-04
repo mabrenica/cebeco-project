@@ -3,7 +3,7 @@ import { createHeaderMap, getColInfo } from './sheetUtils.js';
 
 export async function sortBillRecord() {
   const spreadsheet = await sheets.spreadsheets.get({ spreadsheetId: SPREADSHEET_ID });
-  const sheetObj = spreadsheet.data.sheets.find(s => s.properties.title === 'OnlineBillRecords');
+  const sheetObj = spreadsheet.data.sheets.find(s => s.properties.title === 'online_bill_records');
   
   if (!sheetObj) return;
   const sheetId = sheetObj.properties.sheetId;
@@ -11,15 +11,14 @@ export async function sortBillRecord() {
 
   if (rowCount < 2) return;
 
-  // Read header row dynamically to find Month column index
   const response = await sheets.spreadsheets.values.get({
     spreadsheetId: SPREADSHEET_ID,
-    range: 'OnlineBillRecords!1:1',
+    range: 'online_bill_records!1:1',
   });
 
   const headerRow = response.data.values?.[0] || [];
   const headerMap = createHeaderMap(headerRow);
-  const monthCol = getColInfo(headerMap, 'billingmonth', 'monthyear', 'month');
+  const monthCol = getColInfo(headerMap, 'month_year', 'billingmonth', 'monthyear', 'month');
 
   const sortDimensionIndex = monthCol ? monthCol.index : 1;
 

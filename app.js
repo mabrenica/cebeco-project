@@ -23,7 +23,7 @@ async function mainFunction() {
   try {
     const initResponse = await sheets.spreadsheets.values.get({
       spreadsheetId: SPREADSHEET_ID,
-      range: 'Set Up!A1:Z2',
+      range: 'set_up!A1:Z2',
     });
     
     const setupRows = initResponse.data.values || [];
@@ -31,7 +31,7 @@ async function mainFunction() {
 
     if (setupRows.length > 0) {
       const headerMap = createHeaderMap(setupRows[0]);
-      const accountCol = getColInfo(headerMap, 'accountnumber', 'account', 'accountref');
+      const accountCol = getColInfo(headerMap, 'account_number', 'accountnumber', 'account', 'accountref');
       
       if (accountCol && setupRows[1]) {
         accountNumber = setupRows[1][accountCol.index];

@@ -4,12 +4,12 @@ import { createHeaderMap, getColInfo } from './sheetUtils.js';
 export async function getPaymentStatusChange() {
   const responseValues = await sheets.spreadsheets.values.get({
     spreadsheetId: SPREADSHEET_ID,
-    range: 'OnlineBillRecords!A:Z',
+    range: 'online_bill_records!A:Z',
   });
   
   const responseMeta = await sheets.spreadsheets.get({
     spreadsheetId: SPREADSHEET_ID,
-    ranges: ['OnlineBillRecords!A:Z'],
+    ranges: ['online_bill_records!A:Z'],
     includeGridData: true
   });
 
@@ -18,10 +18,10 @@ export async function getPaymentStatusChange() {
 
   const headerMap = createHeaderMap(data[0]);
   const keyCol = getColInfo(headerMap, 'key', 'recordkey');
-  const monthCol = getColInfo(headerMap, 'billingmonth', 'monthyear', 'month');
-  const amountCol = getColInfo(headerMap, 'billamount', 'amount');
+  const monthCol = getColInfo(headerMap, 'month_year', 'billingmonth', 'monthyear', 'month');
+  const amountCol = getColInfo(headerMap, 'bill_amount', 'billamount', 'amount');
   const statusCol = getColInfo(headerMap, 'status', 'billstatus');
-  const lastPaymentCol = getColInfo(headerMap, 'lastpaymentstatus', 'paymentstatus');
+  const lastPaymentCol = getColInfo(headerMap, 'last_payment_status', 'lastpaymentstatus', 'paymentstatus');
 
   if (!statusCol || !lastPaymentCol) return [];
 
@@ -32,7 +32,6 @@ export async function getPaymentStatusChange() {
     if (index === 0) return;
 
     const currentStatus = item[statusCol.index] || '';
-    // Default lastStatus to 'UNPAID' if cell is empty/undefined to prevent false positive triggers
     const lastStatus = item[lastPaymentCol.index] || 'UNPAID';
 
     if (currentStatus && currentStatus !== lastStatus) {

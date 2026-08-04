@@ -48,7 +48,7 @@ export async function sendBillToEmail(accountNumber, emailAddresses) {
 
   const sheetDataResponse = await sheets.spreadsheets.get({
     spreadsheetId: SPREADSHEET_ID,
-    ranges: ['Bill Template'], 
+    ranges: ['bill_template'], 
     includeGridData: true
   });
 

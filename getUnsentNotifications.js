@@ -4,7 +4,7 @@ import { createHeaderMap, getColInfo } from './sheetUtils.js';
 export async function getUnsentNotifications() {
   const response = await sheets.spreadsheets.values.get({
     spreadsheetId: SPREADSHEET_ID,
-    range: 'OnlineBillRecords!A:Z',
+    range: 'online_bill_records!A:Z',
   });
 
   const data = response.data.values || [];
@@ -12,7 +12,6 @@ export async function getUnsentNotifications() {
 
   const headerMap = createHeaderMap(data[0]);
   const keyCol = getColInfo(headerMap, 'key', 'recordkey');
-  // Added 'notification' alias here:
   const notifStatusCol = getColInfo(headerMap, 'notification', 'notificationstatus', 'notifstatus');
 
   if (!notifStatusCol || !keyCol) return [];

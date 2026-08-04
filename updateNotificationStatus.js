@@ -4,7 +4,7 @@ import { createHeaderMap, getColInfo } from './sheetUtils.js';
 export async function updateNotificationStatus(recordKey) {
   const response = await sheets.spreadsheets.values.get({
     spreadsheetId: SPREADSHEET_ID,
-    range: 'OnlineBillRecords!A:Z',
+    range: 'online_bill_records!A:Z',
   });
 
   const data = response.data.values || [];
@@ -12,7 +12,6 @@ export async function updateNotificationStatus(recordKey) {
 
   const headerMap = createHeaderMap(data[0]);
   const keyCol = getColInfo(headerMap, 'key', 'recordkey');
-  // Added 'notification' alias here:
   const notifStatusCol = getColInfo(headerMap, 'notification', 'notificationstatus', 'notifstatus');
 
   if (!keyCol || !notifStatusCol) return;
@@ -21,7 +20,7 @@ export async function updateNotificationStatus(recordKey) {
     if (data[index][keyCol.index] === recordKey) {
       await sheets.spreadsheets.values.update({
         spreadsheetId: SPREADSHEET_ID,
-        range: `OnlineBillRecords!${notifStatusCol.letter}${index + 1}`,
+        range: `online_bill_records!${notifStatusCol.letter}${index + 1}`,
         valueInputOption: 'USER_ENTERED',
         requestBody: { values: [['sent']] },
       });

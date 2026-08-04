@@ -3,14 +3,12 @@ import { getOnlineBillRecord } from './getOnlineBillRecords.js';
 import { sortBillRecord } from './sortBillRecords.js';
 import { createHeaderMap, getColInfo, colIndexToLetter } from './sheetUtils.js';
 
-// Helper function to clean currency strings (removes ₱, commas, spaces) and parse to float
 function parseNumericValue(val) {
   if (val === null || val === undefined) return 0;
   const cleaned = val.toString().replace(/[^0-9.]/g, '');
   return parseFloat(cleaned) || 0;
 }
 
-// Calculates Rate per kWh (Bill Amount / kWh Used) with ₱ currency symbol and 2 decimal places
 function calculateKwhRate(billAmountStr, kwhUsedStr) {
   const billAmount = parseNumericValue(billAmountStr);
   const kwhUsed = parseNumericValue(kwhUsedStr);
@@ -18,7 +16,7 @@ function calculateKwhRate(billAmountStr, kwhUsedStr) {
   if (kwhUsed === 0) return '₱0.00';
   
   const rate = billAmount / kwhUsed;
-  return `₱${rate.toFixed(2)}`; // Formats to e.g., ₱11.46
+  return `₱${rate.toFixed(2)}`;
 }
 
 export async function getNewBillToSheet(accountNumber) {
@@ -29,7 +27,7 @@ export async function getNewBillToSheet(accountNumber) {
 
     const response = await sheets.spreadsheets.values.get({
       spreadsheetId: SPREADSHEET_ID,
-      range: 'OnlineBillRecords!A:Z',
+      range: 'online_bill_records!A:Z',
     });
 
     const data = response.data.values || [];
@@ -39,16 +37,16 @@ export async function getNewBillToSheet(accountNumber) {
     const headerMap = createHeaderMap(headerRow);
 
     const keyCol = getColInfo(headerMap, 'key', 'recordkey');
-    const monthCol = getColInfo(headerMap, 'billingmonth', 'monthyear', 'month');
-    const presentCol = getColInfo(headerMap, 'presentreading', 'present');
-    const prevCol = getColInfo(headerMap, 'previousreading', 'prevreading', 'previous');
-    const kwhCol = getColInfo(headerMap, 'kwhused', 'kwh');
-    const dueDateCol = getColInfo(headerMap, 'duedate', 'due');
-    const amountCol = getColInfo(headerMap, 'billamount', 'amount');
+    const monthCol = getColInfo(headerMap, 'month_year', 'billingmonth', 'monthyear', 'month');
+    const presentCol = getColInfo(headerMap, 'present_reading', 'presentreading', 'present');
+    const prevCol = getColInfo(headerMap, 'previous_reading', 'previousreading', 'prevreading', 'previous');
+    const kwhCol = getColInfo(headerMap, 'kwh_used', 'kwhused', 'kwh');
+    const dueDateCol = getColInfo(headerMap, 'due_date', 'duedate', 'due');
+    const amountCol = getColInfo(headerMap, 'bill_amount', 'billamount', 'amount');
     const statusCol = getColInfo(headerMap, 'status', 'billstatus');
     const notifStatusCol = getColInfo(headerMap, 'notification', 'notificationstatus', 'notifstatus');
-    const lastPaymentCol = getColInfo(headerMap, 'lastpaymentstatus', 'paymentstatus');
-    const kwhRateCol = getColInfo(headerMap, 'kwhrate', 'ratekwh', 'rate');
+    const lastPaymentCol = getColInfo(headerMap, 'last_payment_status', 'lastpaymentstatus', 'paymentstatus');
+    const kwhRateCol = getColInfo(headerMap, 'kwh_rate', 'kwhrate', 'ratekwh', 'rate');
 
     const allColIndexes = [
       keyCol?.index, monthCol?.index, presentCol?.index, prevCol?.index,
@@ -98,7 +96,7 @@ export async function getNewBillToSheet(accountNumber) {
         const endLetter = colIndexToLetter(maxColIndex);
         await sheets.spreadsheets.values.update({
           spreadsheetId: SPREADSHEET_ID,
-          range: `OnlineBillRecords!A${rowIndex + 1}:${endLetter}${rowIndex + 1}`,
+          range: `online_bill_records!A${rowIndex + 1}:${endLetter}${rowIndex + 1}`,
           valueInputOption: 'USER_ENTERED',
           requestBody: { values: [rowData] },
         });
@@ -108,7 +106,7 @@ export async function getNewBillToSheet(accountNumber) {
 
         await sheets.spreadsheets.values.append({
           spreadsheetId: SPREADSHEET_ID,
-          range: 'OnlineBillRecords!A:Z',
+          range: 'online_bill_records!A:Z',
           valueInputOption: 'USER_ENTERED',
           requestBody: { values: [rowData] },
         });
