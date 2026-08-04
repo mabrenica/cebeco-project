@@ -5,6 +5,7 @@ import { sendBillToEmail, sendPaymentNotificationToEmail } from './emailSender.j
 import { updateNotificationStatus } from './updateNotificationStatus.js';
 import { getPaymentStatusChange } from './getPaymentStatusChange.js';
 import { updateLastPaymentStatus } from './updateLastPaymentStatus.js';
+import { processUnpaidBillReminders } from './billReminderManager.js';
 
 async function paymentNotificationManager(accountNumber, emailAddresses) {
   const paymentStatusChange = await getPaymentStatusChange(accountNumber);
@@ -46,9 +47,14 @@ async function mainFunction() {
         }
       }
 
-      // 3. Process payment status updates specifically for this account
+      // 3. Process payment status updates for this account
       if (config.emailAddresses.length > 0) {
         await paymentNotificationManager(config.accountNumber, config.emailAddresses);
+      }
+
+      // 4. Process scheduled payment reminders for unpaid bills (-3, -1, +1, +3 days)
+      if (config.emailAddresses.length > 0) {
+        await processUnpaidBillReminders(config);
       }
     }
 
