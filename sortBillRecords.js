@@ -41,7 +41,7 @@ export async function sortBillRecord() {
       requestBody: { values: dataRows },
     });
 
-    console.log('online_bill_records sheet successfully sorted (latest on top).');
+    //console.log('online_bill_records sheet successfully sorted (latest on top).');
   } catch (error) {
     console.error('Error sorting online_bill_records sheet:', error);
   }
