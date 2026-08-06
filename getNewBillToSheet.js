@@ -50,11 +50,13 @@ export async function getNewBillToSheet(accountNumber) {
     const notifStatusCol = getColInfo(headerMap, 'notification', 'notificationstatus', 'notifstatus');
     const lastPaymentCol = getColInfo(headerMap, 'last_payment_status', 'lastpaymentstatus', 'paymentstatus');
     const kwhRateCol = getColInfo(headerMap, 'kwh_rate', 'kwhrate', 'ratekwh', 'rate');
+    const reminderStatusCol = getColInfo(headerMap, 'notification_reminder_status', 'reminderstatus', 'notifreminderstatus');
 
     const allColIndexes = [
       keyCol?.index, monthCol?.index, accountNumberCol?.index, presentCol?.index,
       prevCol?.index, kwhCol?.index, dueDateCol?.index, amountCol?.index,
-      statusCol?.index, notifStatusCol?.index, lastPaymentCol?.index, kwhRateCol?.index
+      statusCol?.index, notifStatusCol?.index, lastPaymentCol?.index, kwhRateCol?.index,
+      reminderStatusCol?.index
     ].filter(idx => idx !== undefined);
 
     const maxColIndex = Math.max(headerRow.length - 1, ...allColIndexes);
@@ -62,6 +64,7 @@ export async function getNewBillToSheet(accountNumber) {
     for (const item of record) {
       const cleanMonthYear = item.monthYear.replace(/\s+/g, '');
       const recordKey = `${cleanMonthYear}_${cleanAccountNumber}`;
+      const isPaid = (item.status || '').toString().trim().toUpperCase() === 'PAID';
 
       let rowIndex = -1;
       if (keyCol) {
@@ -89,12 +92,20 @@ export async function getNewBillToSheet(accountNumber) {
       }
 
       if (rowIndex !== -1) {
-        // RECORD EXISTS: Update all columns EXCEPT notification and last_payment_status
+        // RECORD EXISTS: Update all columns EXCEPT notification
         if (notifStatusCol) {
           rowData[notifStatusCol.index] = data[rowIndex][notifStatusCol.index] || '';
         }
         if (lastPaymentCol) {
           rowData[lastPaymentCol.index] = data[rowIndex][lastPaymentCol.index] || '';
+        }
+        if (reminderStatusCol) {
+          const existingReminder = data[rowIndex][reminderStatusCol.index];
+          if (isPaid) {
+            rowData[reminderStatusCol.index] = 'paid';
+          } else {
+            rowData[reminderStatusCol.index] = (existingReminder && existingReminder.trim() !== '') ? existingReminder : 'unpaid';
+          }
         }
 
         const endLetter = colIndexToLetter(maxColIndex);
@@ -105,9 +116,10 @@ export async function getNewBillToSheet(accountNumber) {
           requestBody: { values: [rowData] },
         });
       } else {
-        // NEW RECORD: notification = 'unsent', last_payment_status = scraped status
+        // NEW RECORD
         if (notifStatusCol) rowData[notifStatusCol.index] = 'unsent';
         if (lastPaymentCol) rowData[lastPaymentCol.index] = item.status;
+        if (reminderStatusCol) rowData[reminderStatusCol.index] = isPaid ? 'paid' : 'unpaid';
 
         await sheets.spreadsheets.values.append({
           spreadsheetId: SPREADSHEET_ID,
