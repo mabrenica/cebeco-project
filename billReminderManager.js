@@ -52,10 +52,13 @@ function generateReminderHtml(accountName, bill, diffDays) {
   let reminderMessage = '';
 
   if (diffDays > 0) {
-    // Overdue / Past Due Date
+    // Overdue Message
     reminderMessage = `Good day, <strong>${accountName || 'Valued Customer'}</strong>. This is a reminder that your electricity bill for <strong>${bill.monthYear || 'N/A'}</strong> in the amount of <strong>${bill.billAmount || '₱0.00'}</strong>, which was due on <strong>${formattedDueDate}</strong>, is still unpaid. Please settle your payment to avoid service interruptions, or ${onlineAccountLink}.`;
+  } else if (diffDays === 0) {
+    // Due Date Day Message
+    reminderMessage = `Good day, <strong>${accountName || 'Valued Customer'}</strong>. This is a reminder that your electricity bill for <strong>${bill.monthYear || 'N/A'}</strong> in the amount of <strong>${bill.billAmount || '₱0.00'}</strong> is due today (<strong>${formattedDueDate}</strong>). Please settle your payment to avoid penalties or service interruptions, or ${onlineAccountLink}.`;
   } else {
-    // Future / Upcoming Due Date
+    // Upcoming Message
     reminderMessage = `Good day, <strong>${accountName || 'Valued Customer'}</strong>. This is a reminder regarding your unpaid electricity bill for <strong>${bill.monthYear || 'N/A'}</strong> in the amount of <strong>${bill.billAmount || '₱0.00'}</strong>, which is due on <strong>${formattedDueDate}</strong>. Please settle your payment to avoid penalties, or ${onlineAccountLink}.`;
   }
 
@@ -70,6 +73,15 @@ function generateReminderHtml(accountName, bill, diffDays) {
     .replace(/{{PREV_READING}}/g, bill.prevReading || 'N/A')
     .replace(/{{PRESENT_READING}}/g, bill.presentReading || 'N/A')
     .replace(/{{KWH_USED}}/g, bill.kwhUsed || '0');
+}
+
+async function updateReminderStatusCell(rowIndex, colLetter, newStatus) {
+  await sheets.spreadsheets.values.update({
+    spreadsheetId: SPREADSHEET_ID,
+    range: `online_bill_records!${colLetter}${rowIndex}`,
+    valueInputOption: 'USER_ENTERED',
+    requestBody: { values: [[newStatus]] },
+  });
 }
 
 export async function processUnpaidBillReminders(config) {
@@ -97,10 +109,17 @@ export async function processUnpaidBillReminders(config) {
     const statusCol = getColInfo(headerMap, 'status', 'billstatus');
     const lastPaymentCol = getColInfo(headerMap, 'last_payment_status', 'paymentstatus');
     const kwhRateCol = getColInfo(headerMap, 'kwh_rate', 'kwhrate');
+    const reminderStatusCol = getColInfo(headerMap, 'notification_reminder_status', 'reminderstatus', 'notifreminderstatus');
+
+    if (!reminderStatusCol) {
+      console.warn("notification_reminder_status column not found in online_bill_records header.");
+      return;
+    }
 
     const cleanTargetAcc = String(accountNumber).trim().padStart(11, '0');
 
     let latestBill = null;
+    let targetRowIndex = -1;
 
     for (let i = 1; i < data.length; i++) {
       const item = data[i];
@@ -115,6 +134,7 @@ export async function processUnpaidBillReminders(config) {
       }
 
       if (rowAcc === cleanTargetAcc) {
+        targetRowIndex = i + 1; // 1-based index for Google Sheets
         latestBill = {
           accountNumber: rowAcc,
           monthYear: monthCol ? item[monthCol.index] : '',
@@ -125,29 +145,54 @@ export async function processUnpaidBillReminders(config) {
           billAmount: amountCol ? item[amountCol.index] : '',
           status: statusCol ? item[statusCol.index] : '',
           lastPaymentStatus: lastPaymentCol ? item[lastPaymentCol.index] : '',
-          kwhRate: kwhRateCol ? item[kwhRateCol.index] : ''
+          kwhRate: kwhRateCol ? item[kwhRateCol.index] : '',
+          reminderStatus: (item[reminderStatusCol.index] || 'unpaid').toString().trim().toLowerCase()
         };
         break;
       }
     }
 
-    if (!latestBill) return;
+    if (!latestBill || targetRowIndex === -1) return;
 
     const currentStatus = (latestBill.status || '').toString().trim().toUpperCase();
     const lastPaymentStatus = (latestBill.lastPaymentStatus || '').toString().trim().toUpperCase();
 
+    // Rule: If bill is paid, update status to 'paid' and skip sending
     if (currentStatus === 'PAID' || lastPaymentStatus === 'PAID') {
+      if (latestBill.reminderStatus !== 'paid') {
+        await updateReminderStatusCell(targetRowIndex, reminderStatusCol.letter, 'paid');
+      }
+      return;
+    }
+
+    // Rule: If already reached 2nd_overdue_reminder, ignore
+    if (latestBill.reminderStatus === '2nd_overdue_reminder' || latestBill.reminderStatus === 'paid') {
       return;
     }
 
     const diffDays = getDaysDifferenceFromToday(latestBill.dueDate);
-    const validReminderDays = [-3, -1, 1, 3];
+    let nextReminderStatus = null;
+    let reminderSubject = '';
 
-    if (validReminderDays.includes(diffDays)) {
-      const reminderSubject = diffDays < 0
-        ? `Upcoming Bill Reminder - Due in ${Math.abs(diffDays)} Day(s)`
-        : `Overdue Bill Reminder - ${diffDays} Day(s) Past Due`;
+    // Schedule evaluation with state progression
+    if (diffDays === -3 && latestBill.reminderStatus === 'unpaid') {
+      nextReminderStatus = '1st_reminder';
+      reminderSubject = 'Upcoming Bill Reminder - Due in 3 Days';
+    } else if (diffDays === -1 && latestBill.reminderStatus === '1st_reminder') {
+      nextReminderStatus = '2nd_reminder';
+      reminderSubject = 'Upcoming Bill Reminder - Due Tomorrow';
+    } else if (diffDays === 0 && latestBill.reminderStatus === '2nd_reminder') {
+      nextReminderStatus = '3rd_reminder';
+      reminderSubject = 'Bill Due Today Reminder';
+    } else if (diffDays === 1 && latestBill.reminderStatus === '3rd_reminder') {
+      nextReminderStatus = '1st_overdue_reminder';
+      reminderSubject = 'Overdue Bill Reminder - 1 Day Past Due';
+    } else if (diffDays === 3 && latestBill.reminderStatus === '1st_overdue_reminder') {
+      nextReminderStatus = '2nd_overdue_reminder';
+      reminderSubject = 'Overdue Bill Reminder - 3 Days Past Due';
+    }
 
+    if (nextReminderStatus) {
       const htmlContent = generateReminderHtml(accountName, latestBill, diffDays);
 
       const mailOptions = {
@@ -158,7 +203,8 @@ export async function processUnpaidBillReminders(config) {
       };
 
       await transporter.sendMail(mailOptions);
-      console.log(`Payment reminder sent for ${latestBill.monthYear} (${cleanTargetAcc}) to ${emailAddresses.join(', ')} [Schedule: Day ${diffDays}]`);
+      await updateReminderStatusCell(targetRowIndex, reminderStatusCol.letter, nextReminderStatus);
+      console.log(`Payment reminder [${nextReminderStatus}] sent for ${latestBill.monthYear} (${cleanTargetAcc}) to ${emailAddresses.join(', ')}.`);
     }
   } catch (error) {
     console.error(`Error processing bill reminders for account ${config.accountNumber}:`, error);
