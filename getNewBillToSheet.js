@@ -64,6 +64,8 @@ export async function getNewBillToSheet(accountNumber) {
     for (const item of record) {
       const cleanMonthYear = item.monthYear.replace(/\s+/g, '');
       const recordKey = `${cleanMonthYear}_${cleanAccountNumber}`;
+      
+      // Case-insensitive check on scraped bill status
       const isPaid = (item.status || '').toString().trim().toUpperCase() === 'PAID';
 
       let rowIndex = -1;
@@ -92,18 +94,21 @@ export async function getNewBillToSheet(accountNumber) {
       }
 
       if (rowIndex !== -1) {
-        // RECORD EXISTS: Update all columns EXCEPT notification
+        // RECORD EXISTS: Retain existing initial notification & last_payment_status
         if (notifStatusCol) {
           rowData[notifStatusCol.index] = data[rowIndex][notifStatusCol.index] || '';
         }
         if (lastPaymentCol) {
           rowData[lastPaymentCol.index] = data[rowIndex][lastPaymentCol.index] || '';
         }
+
+        // UPDATE REMINDER STATUS: If online status is now PAID, update reminder status to 'paid'
         if (reminderStatusCol) {
           const existingReminder = data[rowIndex][reminderStatusCol.index];
           if (isPaid) {
             rowData[reminderStatusCol.index] = 'paid';
           } else {
+            // Keep current progression state (e.g., '1st_reminder', '2nd_reminder') if still unpaid
             rowData[reminderStatusCol.index] = (existingReminder && existingReminder.trim() !== '') ? existingReminder : 'unpaid';
           }
         }
